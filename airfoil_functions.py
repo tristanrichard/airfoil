@@ -30,7 +30,6 @@ def get_intra_extra(x, c, airfoil):
     else:
         print('This airfoil is unknown : ', airfoil)
         
-   
     return y_intra, y_extra
 
 if __name__ == "__main__":
