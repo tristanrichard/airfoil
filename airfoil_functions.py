@@ -40,6 +40,11 @@ if __name__ == "__main__":
     theta = np.linspace(0, np.pi, N)
     x_c = c*(0.5)*(1-np.cos(theta))
     
+    # Other discretization to avoid small panels at TE
+    theta_end = 0.95*np.pi
+    theta = np.linspace(0, theta_end, N)
+    x_c = c*(1-np.cos(theta))/(1-np.cos(theta_end))
+    
     y_intra, y_extra = get_intra_extra(x_c, c, 'RevE-HC')
     airfoil_fun = np.concatenate((np.flip(y_intra), y_extra[1:]))
     x = np.concatenate((np.flip(x_c), x_c[1:]))
@@ -49,10 +54,10 @@ if __name__ == "__main__":
     ### Plot airfoil
     fig,ax = plt.subplots()
     
-    ax.plot(airfoil_data[:,0], airfoil_data[:,1], 'k.', label = 'Airfoil (data)')
-    ax.plot(x/c, airfoil_fun/c, 'k', label = 'Airfoil (fun)')
-    ax.plot(x_c/c, ml/c,'k:', label = 'Mean line')
-    ax.plot(x_c/c, t/c, 'k--', label = 'Thickness')
+    # ax.plot(airfoil_data[:,0], airfoil_data[:,1], 'k', label = 'Airfoil (data)')
+    ax.plot(x/c, airfoil_fun/c, 'k.', label = 'Airfoil (fun)')
+    # ax.plot(x_c/c, ml/c,'k:', label = 'Mean line')
+    # ax.plot(x_c/c, t/c, 'k--', label = 'Thickness')
     
     # ax.plot(x/c, airfoil_fun/c, 'k', label = 'Airfoil ($y^*_c \pm y^*_t$)')
     # ax.plot(x_c/c, ml/c,'k:', label = 'Mean line ($y^*_c$)')
@@ -65,3 +70,5 @@ if __name__ == "__main__":
     ax.set_yticks([-0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4])
     ax.grid()
     ax.legend(loc='upper right')
+    
+    plt.show()
