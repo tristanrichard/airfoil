@@ -98,12 +98,12 @@ if __name__ == "__main__":
     AoA = 5
     
     # Create x discretization with a change of variable to get more points on LE and TE
-    theta = np.linspace(0, np.pi, N)
+    theta = np.linspace(0, np.pi, N//2)
     x_c = c*(0.5)*(1-np.cos(theta))
     
     # Other discretization to avoid small panels at TE
     theta_end = 0.95*np.pi
-    theta = np.linspace(0, theta_end, N)
+    theta = np.linspace(0, theta_end, (N//2)+1)
     x_c = c*(1-np.cos(theta))/(1-np.cos(theta_end))
     
     y_intra, y_extra = get_intra_extra(x_c, c, 'RevE-HC')
@@ -136,7 +136,13 @@ if __name__ == "__main__":
                 A[i,j+N] = influence_coefficients(panel_i, panel_j)[1]
             
         b[i] = np.cos(AoA)*np.sin(panel_i.angle) - np.sin(AoA)*np.cos(panel_i.angle)
-        b[i+N] = 0
+        
+    ##changement de variable##
+    s=np.zeros(N+1)
+    s[0]=0
+    for i in range(N):
+        panel_i = Panel(x[i], airfoil_fun[i], x[i+1], airfoil_fun[i+1])
+        s[i+1]= s[i]+ panel_i.longueur 
     
     gamma = scipy.linalg.solve(A,b)
 
