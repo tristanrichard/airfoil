@@ -11,14 +11,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-
-class Panel():
-    def __init__(self, x_start, y_start, x_end, y_end):
-        self.start = (x_start, y_start)
-        self.end = (x_end, y_end)
-        self.control = (1/2 * (x_start+x_end), 1/2 * (y_start+y_end))
-        self.length = (np.abs(x_end-x_start), np.abs(y_end-y_start))
-        self.angle = np.arctan2(self.length[1], self.length[0])
+### Functions for the geometry of the airfoil
         
 def thickness(x, a, b, c, d, e):
     y = (a*np.sqrt(x) + b*x + c*x**2 + d*x**3 + e*x**4)
@@ -41,14 +34,62 @@ def get_intra_extra(x, c, airfoil):
         
     return y_intra, y_extra
 
+### Functions for the influence matrix and RHS
+
+class Panel():
+    def __init__(self, x_start, y_start, x_end, y_end):
+        self.start = (x_start, y_start)
+        self.end = (x_end, y_end)
+        self.control = (1/2 * (x_start+x_end), 1/2 * (y_start+y_end))
+        self.length = (np.abs(x_end-x_start), np.abs(y_end-y_start))
+        self.angle = np.arctan2(self.length[1], self.length[0])
+        
+        # Normal and tangent vector of the panel
+        self.normal = np.array([-self.length[1], self.length[0]])
+        self.tangent = np.array([self.length[0], self.length[1]])
+        
+        # We normalize to get unit vectors
+        self.normal /= np.linalg.norm(self.normal)
+        self.tangent /= np.linalg.norm(self.tangent)
+        
+def u(x, y, b):
+    coeff_alpha = y/2 * (np.log(((x-b)**2 + y**2)/((x+b)**2 + y**2))) + x * (np.arctan((x+b)/y) - np.arctan((x-b)/y))
+    coeff_beta = np.arctan((x+b)/y) - np.arctan((x-b)/y)
+    
+    coeff_alpha *= -1/(2 * np.pi)
+    coeff_beta *= -1/(2 * np.pi)
+    
+    return coeff_alpha, coeff_beta
+
+def v(x, y, b):
+    coeff_alpha = 2*b + y * (np.arctan((x-b)/y) - np.arctan((x+b)/y)) + 1/2 * np.log(((x-b)**2 + y**2)/((x+b)**2 + y**2))
+    coeff_beta = 1/2 * np.log(((x-b)**2 + y**2)/((x+b)**2 + y**2))
+    
+    coeff_alpha *= -1/(2 * np.pi)
+    coeff_beta *= -1/(2 * np.pi)
+    
+    return coeff_alpha, coeff_beta
+
 def influence_coefficients(panel_i, panel_j):
     # Calculate the influence of the panel j on the panel i
+    delta_xc = panel_i.control[0], panel_j.control[0]
+    delta_yc = panel_i.control[1], panel_j.control[1]
     
-    if (i==j):
-                # deuxième partie des formules
-            else:
-                # première partie des formules
-    return 0
+    theta_c = np.arctan2(delta_yc, delta_xc)
+    
+    x = np.linalg.norm(np.array([delta_xc, delta_yc])) * np.cos(theta_c - panel_j.angle)     # Pas sûr de ça 
+    y = np.linalg.norm(np.array([delta_xc, delta_yc])) * np.sin(theta_c - panel_j.angle)
+    
+    alpha_u, beta_u = u(x, y, 1/2 * np.linalg.norm(np.array([panel_j.length[0], panel_j.length[1]])))
+    alpha_v, beta_v = v(x, y, 1/2 * np.linalg.norm(np.array([panel_j.length[0], panel_j.length[1]])))
+    
+    alpha_j = np.dot(np.array([alpha_u, alpha_v]), panel_i.normal)
+    beta_j = np.dot(np.array([beta_u, beta_v]), panel_i.normal)
+    
+    print(alpha_j)
+    print(beta_j)
+    
+    return alpha_j[0], beta_j[0]
 
 if __name__ == "__main__":
     airfoil_data = np.loadtxt('Airfoil-RevE-HC.dat')
@@ -71,29 +112,34 @@ if __name__ == "__main__":
     
     ml, t = c*mean_line(x_c/c, 0.00215, 0.47815, -0.87927, 0.68242, -0.28378), c*thickness(x_c/c, 0.40182, -0.10894, -0.60082, 0.2902, 0.01863)
     
-    ### Setup of the influence matrix and the RHS
-    b = np.zeros(N+1)
-    A = np.zeros((N+1,N+1))
-    for i in range(N+1):          # Vérifier le N-1, mais je crois qu'on peut juste l'imposer avec la condition au TE
-        panel_i = Panel(x[i], airfoil_fun[i], x[i+1], airfoil_fun[i+1])
-        for j in range(N+1):
-            if i==N:
-                if(j==0 or j==N):
-                    A[i,j] = 1
-                else:
-                    A[i,j] = 0
-            else:
-                panel_j = Panel(x[j], airfoil_fun[j], x[j+1], airfoil_fun[j+1])
-                A[i,j] = influence_coefficients(panel_i, panel_j)
-        b[i] = np.cos(AoA)*np.sin(panel_i.angle) - np.sin(AoA)*np.cos(panel_i.angle)
-        
-    # Impose the Kutta condition
+    ### Initialisation of the panels
+    panels = [Panel(x[i], airfoil_fun[i], x[i+1], airfoil_fun[i+1]) for i in range(N)]
     
-    # TODO
+    ### Setup of the influence matrix and the RHS
+    b = np.zeros(2*N)
+    A = np.zeros((2*N,2*N))
+    
+    ### We impose the condition on the normal velocity for each panel to be zero, the continuity equations and the Kutta condition
+    for i in range(N):          
+        panel_i = panels[i]
+        for j in range(N):
+            panel_j = panels[j]
+            
+            if (i == j):
+                # TODO
+                A[i+N,j] = 1/2 * np.linalg.norm(np.array([panel_i.length[0], panel_i.length[1]]))
+                A[i+N,j+1] = 1/2 * np.linalg.norm(np.array([panel_j.length[0], panel_j.length[1]]))
+                A[i+N,j+N] = 1
+                A[i+N,j+N+1] = -1
+            else:
+                A[i,j] = influence_coefficients(panel_i, panel_j)[0]
+                A[i,j+N] = influence_coefficients(panel_i, panel_j)[1]
+            
+        b[i] = np.cos(AoA)*np.sin(panel_i.angle) - np.sin(AoA)*np.cos(panel_i.angle)
+        b[i+N] = 0
     
     gamma = scipy.linalg.solve(A,b)
 
-            
     ### Plot airfoil
     fig,ax = plt.subplots()
     
@@ -118,4 +164,5 @@ if __name__ == "__main__":
     
     ### Plot gamma
     
-    # TODO
+    plt.plot(x,gamma)
+    plt.show()
