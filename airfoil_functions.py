@@ -42,6 +42,7 @@ class Panel():
         self.end = (x_end, y_end)
         self.control = (1/2 * (x_start+x_end), 1/2 * (y_start+y_end))
         self.length = (np.abs(x_end-x_start), np.abs(y_end-y_start))
+        self.norm = np.linalg.norm(np.array([self.length[0], self.length[1]]))
         self.angle = np.arctan2(self.length[1], self.length[0])
         
         # Normal and tangent vector of the panel
@@ -51,6 +52,9 @@ class Panel():
         # We normalize to get unit vectors
         self.normal /= np.linalg.norm(self.normal)
         self.tangent /= np.linalg.norm(self.tangent)
+        
+def circulation(alpha, beta, x):
+    return beta + alpha * x
         
 def u(x, y, b):
     coeff_alpha = y/2 * (np.log(((x-b)**2 + y**2)/((x+b)**2 + y**2))) + x * (np.arctan((x+b)/y) - np.arctan((x-b)/y))
@@ -72,29 +76,32 @@ def v(x, y, b):
 
 def influence_coefficients(panel_i, panel_j):
     # Calculate the influence of the panel j on the panel i
-    delta_xc = panel_i.control[0], panel_j.control[0]
-    delta_yc = panel_i.control[1], panel_j.control[1]
     
-    theta_c = np.arctan2(delta_yc, delta_xc)
+    if (panel_i == panel_j):
+        alpha_j = -1/(2*np.pi) * panel_i.norm + panel_i.control[0] * np.log(np.abs(panel_i.norm/2.0 - panel_i.control[0])/np.abs(panel_i.norm/2.0 + panel_i.control[0]))
+        beta_j = -1/(2*np.pi) * np.log(np.abs(panel_i.norm/2.0 - panel_i.control[0])/np.abs(panel_i.norm/2.0 + panel_i.control[0]))
     
-    x = np.linalg.norm(np.array([delta_xc, delta_yc])) * np.cos(theta_c - panel_j.angle)     # Pas sûr de ça 
-    y = np.linalg.norm(np.array([delta_xc, delta_yc])) * np.sin(theta_c - panel_j.angle)
+    else:
+        delta_xc = np.abs(panel_i.control[0] - panel_j.control[0])
+        delta_yc = np.abs(panel_i.control[1] - panel_j.control[1])
+        
+        theta_c = np.arctan2(delta_yc, delta_xc)
+        
+        x = np.linalg.norm(np.array([delta_xc, delta_yc])) * np.cos(theta_c - panel_j.angle)     # Pas sûr de ça 
+        y = np.linalg.norm(np.array([delta_xc, delta_yc])) * np.sin(theta_c - panel_j.angle)
+        
+        alpha_u, beta_u = u(x, y, 1/2 * panel_j.norm)
+        alpha_v, beta_v = v(x, y, 1/2 * panel_j.norm)
+        
+        alpha_j = np.dot(np.array([alpha_u, alpha_v]), panel_i.normal)
+        beta_j = np.dot(np.array([beta_u, beta_v]), panel_i.normal)
     
-    alpha_u, beta_u = u(x, y, 1/2 * np.linalg.norm(np.array([panel_j.length[0], panel_j.length[1]])))
-    alpha_v, beta_v = v(x, y, 1/2 * np.linalg.norm(np.array([panel_j.length[0], panel_j.length[1]])))
-    
-    alpha_j = np.dot(np.array([alpha_u, alpha_v]), panel_i.normal)
-    beta_j = np.dot(np.array([beta_u, beta_v]), panel_i.normal)
-    
-    print(alpha_j)
-    print(beta_j)
-    
-    return alpha_j[0], beta_j[0]
+    return alpha_j, beta_j
 
 if __name__ == "__main__":
     airfoil_data = np.loadtxt('Airfoil-RevE-HC.dat')
     c = 2
-    N = 200
+    N = 100
     AoA = 5
     
     # Create x discretization with a change of variable to get more points on LE and TE
@@ -122,29 +129,42 @@ if __name__ == "__main__":
     ### We impose the condition on the normal velocity for each panel to be zero, the continuity equations and the Kutta condition
     for i in range(N):          
         panel_i = panels[i]
-        for j in range(N):
+        for j in range(N-1):
             panel_j = panels[j]
             
             if (i == j):
-                # TODO
-                A[i+N,j] = 1/2 * np.linalg.norm(np.array([panel_i.length[0], panel_i.length[1]]))
-                A[i+N,j+1] = 1/2 * np.linalg.norm(np.array([panel_j.length[0], panel_j.length[1]]))
+                A[i+N,j] = 1/2 * panel_i.norm
+                A[i+N,j+1] = 1/2 * panel_j.norm
                 A[i+N,j+N] = 1
                 A[i+N,j+N+1] = -1
-            else:
-                A[i,j] = influence_coefficients(panel_i, panel_j)[0]
-                A[i,j+N] = influence_coefficients(panel_i, panel_j)[1]
+                
+            A[i,j] = influence_coefficients(panel_i, panel_j)[0]
+            A[i,j+N] = influence_coefficients(panel_i, panel_j)[1]
+        
+        A[i,N-1] = influence_coefficients(panel_i, panel_j)[0]
+        A[i,2*N-1] = influence_coefficients(panel_i, panel_j)[1]
             
         b[i] = np.cos(AoA)*np.sin(panel_i.angle) - np.sin(AoA)*np.cos(panel_i.angle)
         
-    ##changement de variable##
+    ### Kutta condition
+    A[2*N-1,0] = -panels[0].norm
+    A[2*N-1,N-1] = panels[N-1].norm
+    A[2*N-1,N] = 1
+    A[2*N-1,2*N-1] = 1
+        
+    ## Changement de variable##
     s=np.zeros(N+1)
     s[0]=0
     for i in range(N):
         panel_i = Panel(x[i], airfoil_fun[i], x[i+1], airfoil_fun[i+1])
-        s[i+1]= s[i]+ panel_i.longueur 
+        s[i+1]= (s[i]+ panel_i.norm)/c 
     
-    gamma = scipy.linalg.solve(A,b)
+    linear_coefficients = scipy.linalg.solve(A,b)
+    
+    gamma = np.zeros(N+1)
+    for i in range(N):
+        gamma[i] = circulation(linear_coefficients[i], linear_coefficients[i+N], x[i]/c)
+    gamma[-1] = -gamma[0]
 
     ### Plot airfoil
     fig,ax = plt.subplots()
