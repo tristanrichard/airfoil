@@ -14,12 +14,10 @@ import matplotlib.pyplot as plt
 ### Functions for the geometry of the airfoil
         
 def thickness(x, a, b, c, d, e):
-    y = (a*np.sqrt(x) + b*x + c*x**2 + d*x**3 + e*x**4)
-    return y
+    return (a*np.sqrt(x) + b*x + c*x**2 + d*x**3 + e*x**4)
 
 def mean_line(x, a, b, c, d, e):
-    y = (a + b*x + c*x**2 + d*x**3 + e*x**4)
-    return y
+    return (a + b*x + c*x**2 + d*x**3 + e*x**4)
 
 def get_intra_extra(x, c, airfoil):
     if airfoil == 'RevE-HC':
@@ -157,7 +155,7 @@ if __name__ == "__main__":
     s[0]=0
     for i in range(N):
         panel_i = Panel(x[i], airfoil_fun[i], x[i+1], airfoil_fun[i+1])
-        s[i+1]= (s[i]+ panel_i.norm)/c 
+        s[i+1]= (s[i]+ panel_i.norm) 
     
     linear_coefficients = scipy.linalg.solve(A,b)
     
@@ -190,5 +188,5 @@ if __name__ == "__main__":
     
     ### Plot gamma
     
-    plt.plot(x,gamma)
+    plt.plot(s,gamma)
     plt.show()
