@@ -73,11 +73,18 @@ if __name__ == "__main__":
     b = np.zeros(N)
     A = np.zeros((N,N))
     
-    for i in range(N-1):          # Vérifier le N-1, mais je crois qu'on peut juste l'imposer avec la condition au TE
+    for i in range(N+1):          # Vérifier le N-1, mais je crois qu'on peut juste l'imposer avec la condition au TE
         panel_i = Panel(x[i], airfoil_fun[i], x[i+1], airfoil_fun[i+1])
-        for j in range(N-1):
-            panel_j = Panel(x[j], airfoil_fun[j], x[j+1], airfoil_fun[j+1])
-            A[i,j] = influence_coefficients(panel_i, panel_j)
+        for j in range(N+1):
+            if i==N:
+                if(j==0 or j==N):
+                    A[i,j] = 1
+                else:
+                    A[i,j] = 0
+            else:
+                panel_j = Panel(x[j], airfoil_fun[j], x[j+1], airfoil_fun[j+1])
+                A[i,j] = influence_coefficients(panel_i, panel_j)
+    
             
     ### Plot airfoil
     fig,ax = plt.subplots()
