@@ -6,6 +6,7 @@ Created on Tue Feb 27 10:14:38 2024
 @author: jcrismer
 """
 
+import scipy
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -17,6 +18,7 @@ class Panel():
         self.end = (x_end, y_end)
         self.control = (1/2 * (x_start+x_end), 1/2 * (y_start+y_end))
         self.length = (np.abs(x_end-x_start), np.abs(y_end-y_start))
+        self.angle = np.arctan2(self.length[1], self.length[0])
         
 def thickness(x, a, b, c, d, e):
     y = (a*np.sqrt(x) + b*x + c*x**2 + d*x**3 + e*x**4)
@@ -73,11 +75,18 @@ if __name__ == "__main__":
     b = np.zeros(N)
     A = np.zeros((N,N))
     
-    for i in range(N-1):          # Vérifier le N-1, mais je crois qu'on peut juste l'imposer avec la condition au TE
+    for i in range(N):          
         panel_i = Panel(x[i], airfoil_fun[i], x[i+1], airfoil_fun[i+1])
-        for j in range(N-1):
+        for j in range(N):
             panel_j = Panel(x[j], airfoil_fun[j], x[j+1], airfoil_fun[j+1])
             A[i,j] = influence_coefficients(panel_i, panel_j)
+        b[i] = np.cos(AoA)*np.sin(panel_i.angle) - np.sin(AoA)*np.cos(panel_i.angle)
+        
+    # Impose the Kutta condition
+    
+    # TODO
+    
+    gamma = scipy.linalg.solve(A,b)
             
     ### Plot airfoil
     fig,ax = plt.subplots()
@@ -100,3 +109,7 @@ if __name__ == "__main__":
     ax.legend(loc='upper right')
     
     plt.show()
+    
+    ### Plot gamma
+    
+    # TODO
