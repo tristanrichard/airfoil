@@ -21,6 +21,7 @@ class Panel():
         self.angle = np.arctan2(self.length[1], self.length[0])
         self.longueur = np.sqrt(((y_end-y_start)**2)+((y_end-y_start)**2))
         
+        
 def thickness(x, a, b, c, d, e):
     y = (a*np.sqrt(x) + b*x + c*x**2 + d*x**3 + e*x**4)
     return y
@@ -42,14 +43,43 @@ def get_intra_extra(x, c, airfoil):
         
     return y_intra, y_extra
 
-def influence_coefficients(panel_i, panel_j):
+def influence_coefficients(panel_i,panel_j,panel_j_avant,same):
     # Calculate the influence of the panel j on the panel i
+    A=0
+    #panel_j
+    b1= panel_j.longueur/2
+    alpha1 = -1/(2*b1)
+    beta1 = 1/2
+    x1=np.abs(panel_j.control[0]-panel_i.control[0])
+    y1=np.abs(panel_j.control[1]-panel_i.control[1])
     
-    if (i==j):
-        pass# deuxième partie des formules
+    #panel j-1
+    if(panel_j_avant!=None):
+        b2= panel_j_avant.longueur/2
+        alpha2 = 1/(2*b2) #le signe change car devient yR 
+        beta2 = 1/2
+        x2=np.abs(panel_j_avant.control[0]-panel_i.control[0])
+        y2=np.abs(panel_j_avant.control[1]-panel_i.control[1])
+    
+    if (same):
+        A+= funct2(alpha1,beta1,b1)
+        if(panel_j_avant!=None):
+            A+=funct2(alpha2,beta2,b2)
     else:
-        pass# première partie des formules
-    return 0
+        #panel_j
+        A+= funct1(alpha1,beta1,x1,y1,x1-b1) + funct1(alpha1,beta1,x1,y1,x1+b1)
+        
+        #panel j-1
+        if(panel_j_avant!=None):
+            A+= funct1(alpha2,beta2,x2,y2,x2-b2) + funct1(alpha2,beta2,x2,y2,x2+b2)
+        
+    return A
+
+def funct1(alpha,beta,x,y,s):
+    return (-1/(2*np.pi))*(alpha*(-s+(y*np.arctan2(s,y)))+(1/2)*(alpha*x+beta)*np.log((s**2)+(y**2)))
+
+def funct2(alpha,beta,b):
+    return (-1/(2*np.pi))*((2*alpha*b)+(alpha*(b/2)+beta)*np.log(1/3))
 
 if __name__ == "__main__":
     airfoil_data = np.loadtxt('Airfoil-RevE-HC.dat')
@@ -58,12 +88,12 @@ if __name__ == "__main__":
     AoA = 5
     
     # Create x discretization with a change of variable to get more points on LE and TE
-    theta = np.linspace(0, np.pi, N//2)
-    x_c = c*(0.5)*(1-np.cos(theta))
+    #theta = np.linspace(0, np.pi, N)
+    #x_c = c*(0.5)*(1-np.cos(theta))
     
     # Other discretization to avoid small panels at TE
     theta_end = 0.95*np.pi
-    theta = np.linspace(0, theta_end, (N//2)+1)
+    theta = np.linspace(0, theta_end, N+1)
     x_c = c*(1-np.cos(theta))/(1-np.cos(theta_end))
     
     y_intra, y_extra = get_intra_extra(x_c, c, 'RevE-HC')
@@ -73,52 +103,54 @@ if __name__ == "__main__":
     ml, t = c*mean_line(x_c/c, 0.00215, 0.47815, -0.87927, 0.68242, -0.28378), c*thickness(x_c/c, 0.40182, -0.10894, -0.60082, 0.2902, 0.01863)
     
     ### Setup of the influence matrix and the RHS
-    b = np.zeros(N+1)
-    A = np.zeros((N+1,N+1))
-    for i in range(N):          # Vérifier le N-1, mais je crois qu'on peut juste l'imposer avec la condition au TE
+    b = np.zeros(2*N)
+    A = np.zeros((2*N,2*N))
+    for i in range(2*N):          # Vérifier le N-1, mais je crois qu'on peut juste l'imposer avec la condition au TE
         panel_i = Panel(x[i], airfoil_fun[i], x[i+1], airfoil_fun[i+1])
-        for j in range(N):
-            if i==N-1:
-                if(j==0 or j==N-1):
+        for j in range(2*N):
+            if i==(2*N)-1:
+                if(j==0 or j==(2*N)-1):
                     A[i,j] = 1
                 else:
                     A[i,j] = 0
             else:
                 panel_j = Panel(x[j], airfoil_fun[j], x[j+1], airfoil_fun[j+1])
-                A[i,j] = influence_coefficients(panel_i, panel_j)
+                if(j!=0):
+                    panel_j_avant = Panel(x[j-1], airfoil_fun[j-1], x[j], airfoil_fun[j])
+                if(j==0):
+                    panel_j_avant=None
+                if(i==j):
+                    A[i,j] = influence_coefficients(panel_i, panel_j,panel_j_avant,True)
+                if(i!=j):
+                    A[i,j] = influence_coefficients(panel_i, panel_j,panel_j_avant,False)
         b[i] = np.cos(AoA)*np.sin(panel_i.angle) - np.sin(AoA)*np.cos(panel_i.angle)
         
-    ##changement de variable##
-    s=np.zeros(N+1)
+    ###construction de s
+    s=np.zeros(2*N)
     s[0]=0
-    for i in range(N):
+    for i in range((2*N)-1):
         panel_i = Panel(x[i], airfoil_fun[i], x[i+1], airfoil_fun[i+1])
         s[i+1]= s[i]+ panel_i.longueur 
     
-    
-    #gamma = scipy.linalg.solve(A,b)
+    gamma = scipy.linalg.solve(A,b)
 
             
     ### Plot airfoil
     fig,ax = plt.subplots()
     
     # ax.plot(airfoil_data[:,0], airfoil_data[:,1], 'k', label = 'Airfoil (data)')
-    ax.plot(x/c, airfoil_fun/c, 'k.', label = 'Airfoil (fun)')
+    #ax.plot(x/c, airfoil_fun/c, 'k.', label = 'Airfoil (fun)')
     # ax.plot(x_c/c, ml/c,'k:', label = 'Mean line')
     # ax.plot(x_c/c, t/c, 'k--', label = 'Thickness')
+    print(A)
+    ax.plot(s/c,gamma)
     
     # ax.plot(x/c, airfoil_fun/c, 'k', label = 'Airfoil ($y^*_c \pm y^*_t$)')
     # ax.plot(x_c/c, ml/c,'k:', label = 'Mean line ($y^*_c$)')
     # ax.plot(x_c/c, t/c, 'k--', label = 'Thickness ($y^*_t$)')
     
-    ax.set_xlabel(r'$x/c$', fontsize=13)
-    ax.set_ylabel(r'$y/c$', fontsize=13)
-    ax.axis('scaled')
-    ax.set_xticks([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
-    ax.set_yticks([-0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4])
-    ax.grid()
-    ax.legend(loc='upper right')
-    
+    ax.set_xlabel(r'$x/c$')
+    ax.set_ylabel(r'$y/c$')  
     plt.show()
     
     ### Plot gamma
