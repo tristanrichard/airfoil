@@ -72,8 +72,8 @@ if __name__ == "__main__":
     ml, t = c*mean_line(x_c/c, 0.00215, 0.47815, -0.87927, 0.68242, -0.28378), c*thickness(x_c/c, 0.40182, -0.10894, -0.60082, 0.2902, 0.01863)
     
     ### Setup of the influence matrix and the RHS
-    b = np.zeros(N)
-    A = np.zeros((N,N))
+    b = np.zeros(N+1)
+    A = np.zeros((N+1,N+1))
     for i in range(N+1):          # Vérifier le N-1, mais je crois qu'on peut juste l'imposer avec la condition au TE
         panel_i = Panel(x[i], airfoil_fun[i], x[i+1], airfoil_fun[i+1])
         for j in range(N+1):
@@ -92,6 +92,7 @@ if __name__ == "__main__":
     # TODO
     
     gamma = scipy.linalg.solve(A,b)
+
             
     ### Plot airfoil
     fig,ax = plt.subplots()
