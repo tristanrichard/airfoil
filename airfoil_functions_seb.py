@@ -53,9 +53,11 @@ class Panel():
         # We normalize to get unit vectors
         self.normal /= self.norm
         self.tangent /= self.norm
-        
-def circulation(alpha, beta, x):
-    return beta + alpha * x
+
+def psi(x, y, alpha, beta, b):
+    def intermediate(x, y, alpha, beta, s):
+        return ((alpha * x + beta) * (s * np.log(s**2 + y**2) - 2 * s + 2 * y * np.arctan(s / y)) - (alpha / 2) * ((s**2 + y**2) * np.log(s**2 + y**2) - s**2))
+    return (1 / (4 * np.pi)) * (intermediate(x, y, alpha, beta, x-b) - intermediate(x, y, alpha, beta, x+b))
         
 def u(x, y, b):
     coeff_gamma_i = -y/2 * 1/(2*b) * (np.log(((x-b)**2 + y**2)/((x+b)**2 + y**2))) + (-x/(2*b) + 1/2) * (np.arctan((x+b)/y) - np.arctan((x-b)/y))
@@ -116,7 +118,7 @@ def influence_coefficients(panel_i, panel_j):
     return coeff_gamma_j, coeff_gamma_j_1
 
 def circulation(alpha, U_inf):
-    ### Setup of the influence matrix and the RHS
+    ### Setup the influence matrix and the RHS
     b = np.zeros(N+1)
     A = np.zeros((N+1,N+1))
     
@@ -136,14 +138,14 @@ def circulation(alpha, U_inf):
     A[N,-1] = 1     # Gamma n+1
     b[-1] = 0
     
-    gamma = scipy.linalg.solve(A,b)
+    gamma = scipy.linalg.solve(A,b)     # TODO vérifier signe
     
-    return gamma/(U_inf*50000)      # TODO check le facteur
+    return gamma/(U_inf)      # TODO check le facteur
 
 if __name__ == "__main__":
     airfoil_data = np.loadtxt('Airfoil-RevE-HC.dat')
     c = 2
-    N = 200
+    N = 100
     U_inf = 1.0
     
     # Create x discretization with a change of variable to get more points on LE and TE
@@ -172,6 +174,7 @@ if __name__ == "__main__":
         s[i+1]= (s[i]+ panel_i.norm/c) 
 
     ### Plot airfoil
+    
     fig,ax = plt.subplots()
     
     # ax.plot(airfoil_data[:,0], airfoil_data[:,1], 'k', label = 'Airfoil (data)')
@@ -195,36 +198,88 @@ if __name__ == "__main__":
     
     ### Results
     
-    gamma_5 = circulation(5.0,U_inf)
-    print(gamma_5[0])
-    print(gamma_5[-1])
-    gamma_10 = circulation(10.0,U_inf)
-    gamma_12_5 = circulation(12.5,U_inf)
-    gamma_15 = circulation(15.0,U_inf)
-    gamma_20 = circulation(20.0,U_inf)
+    alphas = [-10.0, -5.0, 0.0, 5.0, 10.0]
+    gammas = np.zeros((len(alphas), N+1))
     
     ### Plot gamma
     
-    plt.plot(s, gamma_5, label="alpha = 5°")            # TODO: vérifier le facteur
-    # plt.plot(s,gamma_10, label="alpha = 10°")
-    # plt.plot(s,gamma_12_5, label="alpha = 12.5°")
-    # plt.plot(s,gamma_15, label="alpha = 15°")
-    # plt.plot(s,gamma_20, label="alpha = 20°")
+    plt.figure()
+    for i in range(len(alphas)):
+        gammas[i] = circulation(alphas[i], U_inf)
+        plt.plot(s, gammas[i], label=f"alpha = {alphas[i]}°")
+
+    plt.xlabel('Normalized distance along airfoil')
+    plt.ylabel('Gamma')
+    plt.title('Circulation Distribution for Different Angles of Attack')
     plt.legend(loc='upper right')
+    plt.grid(True)
     plt.show()
     
     ### Plot C_p
     
-    plt.plot(x[N//4:-N//4],(1-(gamma_5[N//4:-N//4])**2))     # TODO: vérifier le facteur, le signe et le s
+    for i in range(len(alphas)):
+        plt.plot(x,(1-(gammas[i])**2))     # TODO: vérifier le facteur, le signe et le s [N//4:-N//4]
     plt.show()
     
     ### Plot streamlines
     
-    # TODO
+    alpha = np.zeros(N)
+    beta = np.zeros(N)
+
+    for i in range(N):
+        alpha[i] = (gammas[0][i+1] - gammas[0][i])/(2*panels[i].b)
+        beta[i] = (gammas[0][i] + gammas[0][i+1])/2
+
+    x_min, x_max = -0.5, 1.5
+    y_min, y_max = -0.5, 0.5
+    num_points = 100
+    x_mesh = np.linspace(x_min, x_max, num_points)
+    y_mesh = np.linspace(y_min, y_max, num_points)
+    X, Y = np.meshgrid(x_mesh, y_mesh)
+    # Psi = np.zeros_like(X)
+    u_mesh = np.zeros((num_points, num_points))
+    v_mesh = np.zeros((num_points, num_points))
+
+    for i in range(num_points):  # Iteration on the x points of the mesh
+        for j in range(num_points):  # Iteration on the y points of the mesh
+            for k in range(N):  # Effect of each panel on a point (i,j)
+                panel_l = Panel(k, x_mesh[i]-1, y_mesh[i]-1, x_mesh[i]+1, y_mesh[i]+1)          # TODO : vérifier les coordonnées du panel
+                x_temp, y_temp = calculate_coordinates(panel_l, panels[k])
+                # Psi[i, j] += psi(x_temp, y_temp, alpha[k], beta[k], panels[k].b)
+                u_mesh[i,j] += influence_coefficients(panel_l, panels[k])[0] * gammas[0][k] + influence_coefficients(panel_l, panels[k])[1] * gammas[0][k+1]
+                # v_mesh[i,j] += v(x_temp, y_temp, panels[k].b)[0] * gammas[0][k] + v(x_temp, y_temp, panels[k].b)[1] * gammas[0][k+1]
+
+    plt.streamplot(X, Y, np.cos(u_mesh), np.sin(u_mesh), density=2)
+    plt.plot(x/c, airfoil_fun/c, 'k', label = 'Airfoil (fun)')
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.title('Streamlines')
+    plt.axis('equal')
+    plt.show()
     
     ### Lift coefficient
     
     ### We find the total circulation
-    gamma_tot_5 = sum((gamma_5[i] + gamma_5[i+1]) * panels[i].b for i in range(N))
-    C_l = -gamma_tot_5/(1/2 * U_inf * c)
-    print(C_l)
+    
+    c_l_coefficients = np.zeros_like(alphas)
+    
+    for i in range(len(alphas)):
+        gamma_tot = sum((gammas[i][j] + gammas[i][j+1]) * panels[j].b for j in range(N))
+        c_l_coefficients[i] = -gamma_tot/(1/2 * U_inf * c)
+    
+    # We add a linear fit to see if it's a linear relation or not
+    
+    fit_coeffs = np.polyfit(alphas, c_l_coefficients, 1)
+    fit_line = np.poly1d(fit_coeffs)
+    fit_line_values = fit_line(alphas)    
+    
+    plt.plot(alphas, c_l_coefficients)
+    plt.plot(alphas, fit_line_values, linestyle='--', color='red', label='Linear Fit')
+    
+    plt.xlabel('Angle of Attack (degrees)')
+    plt.ylabel('Lift Coefficient (Cl)')
+    plt.title('Lift Coefficient vs. Angle of Attack with Linear Fit')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+    plt.show()
