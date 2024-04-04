@@ -59,7 +59,9 @@ def XFLRvsCFD():
     plt.title('Cd vs. Alpha')
     plt.grid()
     plt.legend()
+    plt.savefig('./fig/XFLRvsCFD/Cd.png', format = 'png',dpi=300)
     plt.show()
+    
     
     # Tracé du coefficient de portance (Cl) en fonction de alpha
     plt.figure()
@@ -70,6 +72,7 @@ def XFLRvsCFD():
     plt.title('Cl vs. Alpha')
     plt.grid()
     plt.legend()
+    plt.savefig('./fig/XFLRvsCFD/Cl.png', format = 'png',dpi=300)
     plt.show()
     
     plt.figure()
@@ -80,7 +83,62 @@ def XFLRvsCFD():
     plt.title('$C_m$ vs. Alpha')
     plt.grid()
     plt.legend()
+    plt.savefig('./fig/XFLRvsCFD/Cm.png', format = 'png',dpi=300)
     plt.show()
     
     
+def CL_CDvsRe():
+    
+    alpha_XFLR1,Cl_XFLR1,Cd_XFLR1,CM_XFLR2 = read_XFLR("data_XFLR5\Re4.4\T1_Re4.4_M0.55_N0.5_a_0-12.txt")
+    alpha_XFLR2,Cl_XFLR2,Cd_XFLR2,CM_XFLR2 = read_XFLR("data_XFLR5\Re4.4\T1_Re4.4_M0.55_N0.5_a_0-(-12).txt")
+    alpha_XFLR_4 = np.concatenate((alpha_XFLR2,alpha_XFLR1))
+    Cl_XFLR_4=np.concatenate((Cl_XFLR2,Cl_XFLR1))
+    Cd_XFLR_4=np.concatenate((Cd_XFLR2,Cd_XFLR1))
+    
+    alpha_XFLR3,Cl_XFLR3,Cd_XFLR3,CM_XFLR3 = read_XFLR("data_XFLR5\Re3.1\T1_Re3.1_M0.37_N0.5_a_0-12.txt")
+    alpha_XFLR4,Cl_XFLR4,Cd_XFLR4,CM_XFLR4 = read_XFLR("data_XFLR5\Re3.1\T1_Re3.1_M0.37_N0.5_a_0-(-12).txt")
+    alpha_XFLR_3 = np.concatenate((alpha_XFLR4,alpha_XFLR3))
+    Cl_XFLR_3=np.concatenate((Cl_XFLR4,Cl_XFLR3))
+    Cd_XFLR_3=np.concatenate((Cd_XFLR4,Cd_XFLR3))
+    
+    alpha_XFLR5,Cl_XFLR5,Cd_XFLR5,CM_XFLR6 = read_XFLR("data_XFLR5\Re1.5\T1_Re1.5_M0.18_N0.5_a_0-12.txt")
+    alpha_XFLR6,Cl_XFLR6,Cd_XFLR6,CM_XFLR6 = read_XFLR("data_XFLR5\Re1.5\T1_Re1.5_M0.18_N0.5_a_0-(-12).txt")
+    alpha_XFLR_1 = np.concatenate((alpha_XFLR6,alpha_XFLR5))
+    Cl_XFLR_1=np.concatenate((Cl_XFLR6,Cl_XFLR5))
+    Cd_XFLR_1=np.concatenate((Cd_XFLR6,Cd_XFLR5))
+    
+
+
+
+
+
+    plt.figure()
+    plt.plot(alpha_XFLR_4, Cd_XFLR_4, label='Re=4.4x10e6')
+    plt.plot(alpha_XFLR_3, Cd_XFLR_3, label='Re=3.1x10e6')
+    plt.plot(alpha_XFLR_1, Cd_XFLR_1,color='brown', label='Re=1.5x10e6')
+    plt.xlabel('Angle of Attack[°]')
+    plt.ylabel('Coefficient of Drag')
+    plt.title('Cd vs. Alpha for different Reynolds')
+    plt.grid()
+    plt.legend()
+    plt.savefig('./fig/diff_Re/Cd.png', format = 'png',dpi=300)
+    plt.show()
+    
+    # Tracé du coefficient de portance (Cl) en fonction de alpha
+    plt.figure()
+    plt.plot(alpha_XFLR_4, Cl_XFLR_4, label='Re=4.4x10e6')
+    plt.plot(alpha_XFLR_3, Cl_XFLR_3, label='Re=3.1x10e6')
+    plt.plot(alpha_XFLR_1, Cl_XFLR_1,color='brown', label='Re=1.5x10e6')
+    plt.xlabel('Angle of Attack[°]')
+    plt.ylabel('Coefficient of Lift')
+    plt.title('Cl vs. Alpha for different Reynolds')
+    plt.grid()
+    plt.legend()
+    plt.savefig('./fig/diff_Re/Cl.png', format = 'png',dpi=300)
+    plt.show()
+    
+    
+    
+    
 XFLRvsCFD()
+CL_CDvsRe()
