@@ -92,7 +92,7 @@ def calculate_coordinates(panel_i, panel_j):
     
     distance = math.sqrt(delta_x**2 + delta_y**2)
     
-    angle = theta_control + panel_j.angle
+    angle = panel_j.angle - theta_control
     
     x = np.cos(angle) * distance
     y = np.sin(angle) * distance
@@ -115,55 +115,7 @@ def influence_coefficients(panel_i, panel_j):
     
     return coeff_gamma_j, coeff_gamma_j_1
 
-# def influence_coefficients(panel_i, panel_j):
-#     # Calculate the influence of the panel j on the panel i
-    
-#     if (panel_i == panel_j):
-#         alpha_j = -1/(2*np.pi) * panel_i.norm + panel_i.control[0] * np.log(np.abs(panel_i.norm/2.0 - panel_i.control[0])/np.abs(panel_i.norm/2.0 + panel_i.control[0]))
-#         beta_j = -1/(2*np.pi) * np.log(np.abs(panel_i.norm/2.0 - panel_i.control[0])/np.abs(panel_i.norm/2.0 + panel_i.control[0]))
-    
-#     else:
-#         delta_xc = np.abs(panel_i.control[0] - panel_j.control[0])
-#         delta_yc = np.abs(panel_i.control[1] - panel_j.control[1])
-        
-#         theta_c = np.arctan2(delta_yc, delta_xc)
-        
-#         x = np.linalg.norm(np.array([delta_xc, delta_yc])) * np.cos(theta_c - panel_j.angle)     # Pas sûr de ça 
-#         y = np.linalg.norm(np.array([delta_xc, delta_yc])) * np.sin(theta_c - panel_j.angle)
-        
-#         alpha_u, beta_u = u(x, y, 1/2 * panel_j.norm)
-#         alpha_v, beta_v = v(x, y, 1/2 * panel_j.norm)
-        
-#         alpha_j = np.dot(np.array([alpha_u, alpha_v]), panel_i.normal)
-#         beta_j = np.dot(np.array([beta_u, beta_v]), panel_i.normal)
-    
-#     return alpha_j, beta_j
-
-if __name__ == "__main__":
-    airfoil_data = np.loadtxt('Airfoil-RevE-HC.dat')
-    c = 2
-    N = 100
-    AoA = 5
-    U_inf = 1.0
-    
-    # Create x discretization with a change of variable to get more points on LE and TE
-    theta = np.linspace(0, np.pi, N//2)        # TODO vérifier le //2
-    x_c = c*(0.5)*(1-np.cos(theta))
-    
-    # Other discretization to avoid small panels at TE
-    theta_end = 0.95*np.pi
-    theta = np.linspace(0, theta_end, (N//2)+1)
-    x_c = c*(1-np.cos(theta))/(1-np.cos(theta_end))
-    
-    y_intra, y_extra = get_intra_extra(x_c, c, 'RevE-HC')
-    airfoil_fun = np.concatenate((np.flip(y_intra), y_extra[1:]))
-    x = np.concatenate((np.flip(x_c), x_c[1:]))
-    
-    ml, t = c*mean_line(x_c/c, 0.00215, 0.47815, -0.87927, 0.68242, -0.28378), c*thickness(x_c/c, 0.40182, -0.10894, -0.60082, 0.2902, 0.01863)
-    
-    ### Initialization of the panels
-    panels = [Panel(i, x[i], airfoil_fun[i], x[i+1], airfoil_fun[i+1]) for i in range(N)]
-    
+def circulation(alpha, U_inf):
     ### Setup of the influence matrix and the RHS
     b = np.zeros(N+1)
     A = np.zeros((N+1,N+1))
@@ -177,21 +129,47 @@ if __name__ == "__main__":
             A[i,j] += influence_coefficients(panel_i, panel_j)[0]
             A[i,j+1] += influence_coefficients(panel_i, panel_j)[1]
             
-        b[i] = U_inf * (np.cos(AoA)*np.sin(panel_i.angle) - np.sin(AoA)*np.cos(panel_i.angle))
+        b[i] = U_inf * (np.cos(alpha)*np.sin(panel_i.angle) - np.sin(alpha)*np.cos(panel_i.angle))
         
     ### Kutta condition
     A[N,0] = 1      # Gamma 1
     A[N,-1] = 1     # Gamma n+1
     b[-1] = 0
-        
+    
+    gamma = scipy.linalg.solve(A,b)
+    
+    return gamma/(U_inf*50000)      # TODO check le facteur
+
+if __name__ == "__main__":
+    airfoil_data = np.loadtxt('Airfoil-RevE-HC.dat')
+    c = 2
+    N = 200
+    U_inf = 1.0
+    
+    # Create x discretization with a change of variable to get more points on LE and TE
+    theta = np.linspace(0, np.pi, N//2)        
+    x_c = c*(0.5)*(1-np.cos(theta))
+    
+    # Other discretization to avoid small panels at TE
+    theta_end = 0.95*np.pi
+    theta = np.linspace(0, theta_end, (N//2)+1)
+    x_c = c*(1-np.cos(theta))/(1-np.cos(theta_end))
+    
+    y_intra, y_extra = get_intra_extra(x_c, c, 'RevE-HC')
+    airfoil_fun = np.concatenate((np.flip(y_intra), y_extra[1:]))
+    x = np.concatenate((np.flip(x_c), x_c[1:]))
+    
+    ml, t = c*mean_line(x_c/c, 0.00215, 0.47815, -0.87927, 0.68242, -0.28378), c*thickness(x_c/c, 0.40182, -0.10894, -0.60082, 0.2902, 0.01863)
+            
+    ### Initialization of the panels
+    panels = [Panel(i, x[i], airfoil_fun[i], x[i+1], airfoil_fun[i+1]) for i in range(N)]       
+    
     ## Changement de variable##
     s=np.zeros(N+1)
     s[0]=0
     for i in range(N):
         panel_i = panels[i]
         s[i+1]= (s[i]+ panel_i.norm/c) 
-    
-    gamma = scipy.linalg.solve(A,b)
 
     ### Plot airfoil
     fig,ax = plt.subplots()
@@ -215,7 +193,38 @@ if __name__ == "__main__":
     
     plt.show()
     
+    ### Results
+    
+    gamma_5 = circulation(5.0,U_inf)
+    print(gamma_5[0])
+    print(gamma_5[-1])
+    gamma_10 = circulation(10.0,U_inf)
+    gamma_12_5 = circulation(12.5,U_inf)
+    gamma_15 = circulation(15.0,U_inf)
+    gamma_20 = circulation(20.0,U_inf)
+    
     ### Plot gamma
     
-    plt.plot(s[1:-1],gamma[1:-1])
+    plt.plot(s, gamma_5, label="alpha = 5°")            # TODO: vérifier le facteur
+    # plt.plot(s,gamma_10, label="alpha = 10°")
+    # plt.plot(s,gamma_12_5, label="alpha = 12.5°")
+    # plt.plot(s,gamma_15, label="alpha = 15°")
+    # plt.plot(s,gamma_20, label="alpha = 20°")
+    plt.legend(loc='upper right')
     plt.show()
+    
+    ### Plot C_p
+    
+    plt.plot(x[N//4:-N//4],(1-(gamma_5[N//4:-N//4])**2))     # TODO: vérifier le facteur, le signe et le s
+    plt.show()
+    
+    ### Plot streamlines
+    
+    # TODO
+    
+    ### Lift coefficient
+    
+    ### We find the total circulation
+    gamma_tot_5 = sum((gamma_5[i] + gamma_5[i+1]) * panels[i].b for i in range(N))
+    C_l = -gamma_tot_5/(1/2 * U_inf * c)
+    print(C_l)
