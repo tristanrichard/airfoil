@@ -83,4 +83,9 @@ def XFLRvsCFD():
     plt.show()
     
     
+def CLvsRe():
+    return
+    
+    
+    
 XFLRvsCFD()
