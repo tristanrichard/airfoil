@@ -223,39 +223,39 @@ if __name__ == "__main__":
     
     ### Plot streamlines
     
-    alpha = np.zeros(N)
-    beta = np.zeros(N)
+    # alpha = np.zeros(N)
+    # beta = np.zeros(N)
 
-    for i in range(N):
-        alpha[i] = (gammas[0][i+1] - gammas[0][i])/(2*panels[i].b)
-        beta[i] = (gammas[0][i] + gammas[0][i+1])/2
+    # for i in range(N):
+    #     alpha[i] = (gammas[0][i+1] - gammas[0][i])/(2*panels[i].b)
+    #     beta[i] = (gammas[0][i] + gammas[0][i+1])/2
 
-    x_min, x_max = -0.5, 1.5
-    y_min, y_max = -0.5, 0.5
-    num_points = 100
-    x_mesh = np.linspace(x_min, x_max, num_points)
-    y_mesh = np.linspace(y_min, y_max, num_points)
-    X, Y = np.meshgrid(x_mesh, y_mesh)
-    # Psi = np.zeros_like(X)
-    u_mesh = np.zeros((num_points, num_points))
-    v_mesh = np.zeros((num_points, num_points))
+    # x_min, x_max = -0.5, 1.5
+    # y_min, y_max = -0.5, 0.5
+    # num_points = 100
+    # x_mesh = np.linspace(x_min, x_max, num_points)
+    # y_mesh = np.linspace(y_min, y_max, num_points)
+    # X, Y = np.meshgrid(x_mesh, y_mesh)
+    # # Psi = np.zeros_like(X)
+    # u_mesh = np.zeros((num_points, num_points))
+    # v_mesh = np.zeros((num_points, num_points))
 
-    for i in range(num_points):  # Iteration on the x points of the mesh
-        for j in range(num_points):  # Iteration on the y points of the mesh
-            for k in range(N):  # Effect of each panel on a point (i,j)
-                panel_l = Panel(k, x_mesh[i]-1, y_mesh[i]-1, x_mesh[i]+1, y_mesh[i]+1)          # TODO : vérifier les coordonnées du panel
-                x_temp, y_temp = calculate_coordinates(panel_l, panels[k])
-                # Psi[i, j] += psi(x_temp, y_temp, alpha[k], beta[k], panels[k].b)
-                u_mesh[i,j] += influence_coefficients(panel_l, panels[k])[0] * gammas[0][k] + influence_coefficients(panel_l, panels[k])[1] * gammas[0][k+1]
-                # v_mesh[i,j] += v(x_temp, y_temp, panels[k].b)[0] * gammas[0][k] + v(x_temp, y_temp, panels[k].b)[1] * gammas[0][k+1]
+    # for i in range(num_points):  # Iteration on the x points of the mesh
+    #     for j in range(num_points):  # Iteration on the y points of the mesh
+    #         for k in range(N):  # Effect of each panel on a point (i,j)
+    #             panel_l = Panel(k, x_mesh[i]-1, y_mesh[i]-1, x_mesh[i]+1, y_mesh[i]+1)          # TODO : vérifier les coordonnées du panel
+    #             x_temp, y_temp = calculate_coordinates(panel_l, panels[k])
+    #             # Psi[i, j] += psi(x_temp, y_temp, alpha[k], beta[k], panels[k].b)
+    #             u_mesh[i,j] += influence_coefficients(panel_l, panels[k])[0] * gammas[0][k] + influence_coefficients(panel_l, panels[k])[1] * gammas[0][k+1]
+    #             # v_mesh[i,j] += v(x_temp, y_temp, panels[k].b)[0] * gammas[0][k] + v(x_temp, y_temp, panels[k].b)[1] * gammas[0][k+1]
 
-    plt.streamplot(X, Y, np.cos(u_mesh), np.sin(u_mesh), density=2)
-    plt.plot(x/c, airfoil_fun/c, 'k', label = 'Airfoil (fun)')
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.title('Streamlines')
-    plt.axis('equal')
-    plt.show()
+    # plt.streamplot(X, Y, np.cos(u_mesh), np.sin(u_mesh), density=2)
+    # plt.plot(x/c, airfoil_fun/c, 'k', label = 'Airfoil (fun)')
+    # plt.xlabel('X')
+    # plt.ylabel('Y')
+    # plt.title('Streamlines')
+    # plt.axis('equal')
+    # plt.show()
     
     ### Lift coefficient
     
