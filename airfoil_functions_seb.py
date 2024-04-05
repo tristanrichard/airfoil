@@ -140,7 +140,7 @@ def circulation(alpha, U_inf):
     A[N,N] = 1     # Gamma n+1
     b[N] = 0
 
-    return scipy.linalg.solve(A,-b)     
+    return scipy.linalg.solve(A,-b)/10000     
 
 if __name__ == "__main__":
     airfoil_data = np.loadtxt('Airfoil-RevE-HC.dat')
@@ -172,14 +172,12 @@ if __name__ == "__main__":
     for i in range(N):
         panel_i = panels[i]
         s[i+1]= (s[i]+ panel_i.norm) 
-        
-    s = np.flip(s)      # TODO vérifier
     
     ### Results
 
     fig, axs = plt.subplots(2, 2, figsize=(12, 10))
 
-    alphas_degre = [2.0*i for i in range(3)]
+    alphas_degre = [4.0*i for i in range(3)]
     alphas_radian = [alphas_degre[i] * np.pi/180 for i in range(len(alphas_degre))]
     print(alphas_degre, alphas_radian)
     gammas = np.zeros((len(alphas_radian), N+1))
@@ -206,7 +204,7 @@ if __name__ == "__main__":
     axs[0, 1].grid(True)
 
     for i in range(len(alphas_radian)):
-        axs[1, 0].plot(s,-(1-(gammas[i]/U_inf)**2), label=f"alpha = {alphas_degre[i]}°")
+        axs[1, 0].plot(s/c,(1-(gammas[i]/U_inf)**2), label=f"alpha = {alphas_degre[i]}°")
 
     axs[1, 0].set_xlabel('Normalized distance along airfoil')
     axs[1, 0].set_ylabel('C_p')
@@ -224,7 +222,7 @@ if __name__ == "__main__":
     fit_line = np.poly1d(fit_coeffs)
     fit_line_values = fit_line(alphas_degre)
 
-    axs[1, 1].plot(alphas_degre, c_l_coefficients)
+    axs[1, 1].plot(alphas_degre, c_l_coefficients, 'k.', label='Potential flow results')
     axs[1, 1].plot(alphas_degre, fit_line_values, linestyle='--', color='red', label='Linear Fit')
 
     axs[1, 1].set_xlabel('Angle of Attack (degrees)')
