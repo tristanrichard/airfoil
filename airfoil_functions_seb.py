@@ -117,6 +117,24 @@ def influence_coefficients(panel_i, panel_j):
     
     return coeff_gamma_j, coeff_gamma_j_1
 
+def streamlines(panel_i, panel_j):
+    ### Calculate the influence of the panel j on the panel i
+    x,y = calculate_coordinates(panel_i, panel_j)
+    
+    if (panel_i.index == panel_j.index):
+        coeff_u_gamma_i, coeff_u_gamma_i_1 = 0, 0
+        coeff_v_gamma_i, coeff_v_gamma_i_1 = own_influence(x, panel_j.b)
+    else:
+        coeff_u_gamma_i, coeff_u_gamma_i_1 = u(x, y, panel_j.b)
+        coeff_v_gamma_i, coeff_v_gamma_i_1 = v(x, y, panel_j.b)
+        
+    coeff_u_gamma_j = np.dot(np.array([1,0]), coeff_u_gamma_i * panel_j.tangent) + np.dot(np.array([1,0]), coeff_v_gamma_i * panel_j.normal)
+    coeff_u_gamma_j_1 = np.dot(np.array([1,0]), coeff_u_gamma_i_1 * panel_j.tangent) + np.dot(np.array([1,0]), coeff_v_gamma_i_1 * panel_j.normal)
+    coeff_v_gamma_j = np.dot(np.array([0,1]), coeff_u_gamma_i * panel_j.tangent) + np.dot(np.array([0,1]), coeff_v_gamma_i * panel_j.normal)
+    coeff_v_gamma_j_1 = np.dot(np.array([0,1]), coeff_u_gamma_i_1 * panel_j.tangent) + np.dot(np.array([0,1]), coeff_v_gamma_i_1 * panel_j.normal)
+    
+    return coeff_u_gamma_j, coeff_u_gamma_j_1, coeff_v_gamma_j, coeff_v_gamma_j_1
+
 def circulation(alpha, U_inf):
     ### Setup the influence matrix and the RHS
     b = np.zeros(N+1)
@@ -140,7 +158,7 @@ def circulation(alpha, U_inf):
     A[N,N] = 1     # Gamma n+1
     b[N] = 0
 
-    return scipy.linalg.solve(A,-b)/10000     # TODO facteur et -
+    return scipy.linalg.solve(A,-b)/10000
 
 if __name__ == "__main__":
     airfoil_data = np.loadtxt('Airfoil-RevE-HC.dat')
@@ -179,7 +197,6 @@ if __name__ == "__main__":
     alphas_radian = [alphas_degre[i] * np.pi/180 for i in range(len(alphas_degre))]
     print(alphas_degre, alphas_radian)
     gammas = np.zeros((len(alphas_radian), N+1))
-    
     
     #########
     # Plots #
@@ -288,13 +305,18 @@ if __name__ == "__main__":
     # for i in range(num_points):  # Iteration on the x points of the mesh
     #     for j in range(num_points):  # Iteration on the y points of the mesh
     #         for k in range(N):  # Effect of each panel on a point (i,j)
-    #             panel_l = Panel(k, x_mesh[i]-1, y_mesh[i]-1, x_mesh[i]+1, y_mesh[i]+1)          # TODO : vérifier les coordonnées du panel
-    #             x_temp, y_temp = calculate_coordinates(panel_l, panels[k])
+    #             panel_l = Panel(N+2, x_mesh[i]-1, y_mesh[i]-1, x_mesh[i]+1, y_mesh[i]+1)          # TODO : vérifier les coordonnées du panel
+    #             # x_temp, y_temp = calculate_coordinates(panel_l, panels[k])
     #             # Psi[i, j] += psi(x_temp, y_temp, alpha[k], beta[k], panels[k].b)
-    #             u_mesh[i,j] += influence_coefficients(panel_l, panels[k])[0] * gammas[0][k] + influence_coefficients(panel_l, panels[k])[1] * gammas[0][k+1]
+    #             # coefficients = influence_coefficients(panel_l, panels[k])
+    #             # u_mesh[i,j] += coefficients[0] * gammas[0][k] + coefficients[1] * gammas[0][k+1]
     #             # v_mesh[i,j] += v(x_temp, y_temp, panels[k].b)[0] * gammas[0][k] + v(x_temp, y_temp, panels[k].b)[1] * gammas[0][k+1]
-
-    # plt.streamplot(X, Y, np.cos(u_mesh), np.sin(u_mesh), density=2)
+                
+    #             results = streamlines(panel_l, panels[k])
+    #             u_mesh[i,j] += results[0] * gammas[0][k] + results[1] * gammas[0][k+1]
+    #             v_mesh[i,j] += results[2] * gammas[0][k] + results[3] * gammas[0][k+1]
+                
+    # plt.streamplot(X, Y, u_mesh, v_mesh, density=2)
     # plt.plot(x/c, airfoil_fun/c, 'k', label = 'Airfoil (fun)')
     # plt.xlabel('X')
     # plt.ylabel('Y')
