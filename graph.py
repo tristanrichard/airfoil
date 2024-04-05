@@ -8,6 +8,20 @@ Created on Thu Apr  4 08:52:49 2024
 import numpy as np
 import matplotlib.pyplot as plt
 
+def read_pot():
+    with open("cl_alpha_values.txt", 'r') as file:
+        lines = file.readlines()
+    
+    alpha = []
+    Cl = []
+    
+    for line in lines[1:]:
+        data = line.split()
+        alpha.append(float(data[0]))
+        Cl.append(float(data[1]))
+
+    return alpha,Cl
+
 def read_XFLR(filename):
     with open(filename, 'r') as file:
         lines = file.readlines()
@@ -159,9 +173,30 @@ def CL_CDvsRe():
     plt.show()
     
     
+def XFLRvspot():
+    alpha,Cl = read_pot()
+    alpha_XFLR1,Cl_XFLR1,a,b = read_XFLR("data_XFLR5\Re4.4\T1_Re4.4_M0.55_N0.5_a_0-12.txt")
+    alpha_XFLR2,Cl_XFLR2,c,d = read_XFLR("data_XFLR5\Re4.4\T1_Re4.4_M0.55_N0.5_a_0-(-12).txt")
+    alpha_XFLR = np.concatenate((alpha_XFLR2,alpha_XFLR1))
+    Cl_XFLR=np.concatenate((Cl_XFLR2,Cl_XFLR1))
     
     
-XFLRvsCFD("data_XFLR5\Re6e6\T1_Re6e6_M0_N0.5_a_0-12.txt","data_XFLR5\Re6e6\T1_Re6e6_M0_N0.5_a_0-(-12).txt")
+    plt.figure()
+    plt.plot(alpha_XFLR, Cl_XFLR, label='XFLR')
+    #plt.plot(alpha, np.add(np.divide(Cl,50000),0.75), label='Potential')
+    plt.plot(alpha,Cl, label='Potential')
+    plt.xlabel('Angle of Attack[°]')
+    plt.ylabel('Coefficient of Lift')
+    plt.title('Cl vs. Alpha')
+    plt.grid()
+    plt.legend()
+    plt.savefig('./fig/XFLRvsPOT/Cl.png', format = 'png',dpi=300)
+    plt.show()
+    
+    
+    
+    
+#XFLRvsCFD("data_XFLR5\Re6e6\T1_Re6e6_M0_N0.5_a_0-12.txt","data_XFLR5\Re6e6\T1_Re6e6_M0_N0.5_a_0-(-12).txt")
 #XFLRvsCFD("data_XFLR5\Re6e6\T1_Re6e6_M0.45_N0.5_a_0-12.txt","data_XFLR5\Re6e6\T1_Re6e6_M0.45_N0.5_0-(-12).txt")
-
-CL_CDvsRe()
+#CL_CDvsRe()
+XFLRvspot()

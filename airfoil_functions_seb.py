@@ -348,3 +348,15 @@ axs[1, 1].grid(True)
 
 plt.tight_layout()
 plt.show()
+
+# Définir le chemin du fichier de sortie
+output_file = "./cl_alpha_values.txt"
+
+# Ouvrir le fichier en mode écriture
+with open(output_file, 'w') as file:
+    # Écrire l'en-tête
+    file.write("Alpha (degrees)\tCl\n")
+    
+    # Écrire les valeurs de Cl et alpha
+    for alpha, cl in zip(alphas, c_l_coefficients):
+        file.write(f"{alpha}\t{cl}\n")
