@@ -140,13 +140,13 @@ def circulation(alpha, U_inf):
     A[N,N] = 1     # Gamma n+1
     b[N] = 0
 
-    return scipy.linalg.solve(A,b)     
+    return scipy.linalg.solve(A,-b)     
 
 if __name__ == "__main__":
     airfoil_data = np.loadtxt('Airfoil-RevE-HC.dat')
     c = 2
     N = 200
-    U_inf = 1.0    # TODO check le facteur
+    U_inf = 1.0
     
     # Create x discretization with a change of variable to get more points on LE and TE
     theta = np.linspace(0, np.pi, N//2)        
@@ -172,6 +172,69 @@ if __name__ == "__main__":
     for i in range(N):
         panel_i = panels[i]
         s[i+1]= (s[i]+ panel_i.norm) 
+        
+    s = np.flip(s)      # TODO vérifier
+    
+    ### Results
+
+    fig, axs = plt.subplots(2, 2, figsize=(12, 10))
+
+    alphas_degre = [2.0*i for i in range(3)]
+    alphas_radian = [alphas_degre[i] * np.pi/180 for i in range(len(alphas_degre))]
+    print(alphas_degre, alphas_radian)
+    gammas = np.zeros((len(alphas_radian), N+1))
+
+    # Plot gamma
+    for i in range(len(alphas_radian)):
+        gammas[i] = circulation(alphas_radian[i], U_inf)               # TODO vérifier facteur
+        axs[0, 0].plot(s/c, gammas[i]/U_inf, label=f"alpha = {alphas_degre[i]}°")
+
+    axs[0, 0].set_xlabel('Normalized distance along airfoil')
+    axs[0, 0].set_ylabel('Gamma')
+    axs[0, 0].set_title('Circulation Distribution for Different Angles of Attack')
+    axs[0, 0].legend(loc='lower right')
+    axs[0, 0].grid(True)
+
+    # Plot C_p
+    for i in range(len(alphas_radian)):
+        axs[0, 1].plot(x/c,-(1-(gammas[i]/U_inf)**2), label=f"alpha = {alphas_degre[i]}°")
+
+    axs[0, 1].set_xlabel('x')
+    axs[0, 1].set_ylabel('C_p')
+    axs[0, 1].set_title('C_p vs. x for Different Angles of Attack')
+    axs[0, 1].legend()
+    axs[0, 1].grid(True)
+
+    for i in range(len(alphas_radian)):
+        axs[1, 0].plot(s,-(1-(gammas[i]/U_inf)**2), label=f"alpha = {alphas_degre[i]}°")
+
+    axs[1, 0].set_xlabel('Normalized distance along airfoil')
+    axs[1, 0].set_ylabel('C_p')
+    axs[1, 0].set_title('C_p vs. Normalized distance for Different Angles of Attack')
+    axs[1, 0].legend()
+    axs[1, 0].grid(True)
+
+    # Plot lift coefficient
+    c_l_coefficients = np.zeros_like(alphas_radian)
+    for i in range(len(alphas_radian)):
+        gamma_tot = sum((gammas[i][j] + gammas[i][j+1]) * panels[j].b for j in range(N))
+        c_l_coefficients[i] = -gamma_tot/(1/2 * U_inf * c)
+
+    fit_coeffs = np.polyfit(alphas_degre, c_l_coefficients, 1)
+    fit_line = np.poly1d(fit_coeffs)
+    fit_line_values = fit_line(alphas_degre)
+
+    axs[1, 1].plot(alphas_degre, c_l_coefficients)
+    axs[1, 1].plot(alphas_degre, fit_line_values, linestyle='--', color='red', label='Linear Fit')
+
+    axs[1, 1].set_xlabel('Angle of Attack (degrees)')
+    axs[1, 1].set_ylabel('Lift Coefficient (Cl)')
+    axs[1, 1].set_title('Lift Coefficient vs. Angle of Attack with Linear Fit')
+    axs[1, 1].legend()
+    axs[1, 1].grid(True)
+
+    plt.tight_layout()
+    plt.show()
 
     # ### Plot airfoil
     
@@ -288,63 +351,3 @@ if __name__ == "__main__":
     # plt.grid(True)
     # plt.show()
     # plt.show()
-    
-    ### Results
-
-fig, axs = plt.subplots(2, 2, figsize=(12, 10))
-
-# alphas = [0.0, 5.0, 10.0]
-alphas = [-10.0, -5.0, 0.0, 5.0, 10.0]
-gammas = np.zeros((len(alphas), N+1))
-
-# Plot gamma
-for i in range(len(alphas)):
-    gammas[i] = circulation(alphas[i], U_inf)
-    axs[0, 0].plot(s, gammas[i]/U_inf, label=f"alpha = {alphas[i]}°")
-
-axs[0, 0].set_xlabel('Normalized distance along airfoil')
-axs[0, 0].set_ylabel('Gamma')
-axs[0, 0].set_title('Circulation Distribution for Different Angles of Attack')
-axs[0, 0].legend(loc='lower right')
-axs[0, 0].grid(True)
-
-# Plot C_p
-for i in range(len(alphas)):
-    axs[0, 1].plot(x/c,(1-(gammas[i]/U_inf)**2), label=f"alpha = {alphas[i]}°")
-
-axs[0, 1].set_xlabel('x')
-axs[0, 1].set_ylabel('C_p')
-axs[0, 1].set_title('C_p vs. x for Different Angles of Attack')
-axs[0, 1].legend()
-axs[0, 1].grid(True)
-
-for i in range(len(alphas)):
-    axs[1, 0].plot(s,(1-(gammas[i]/U_inf)**2), label=f"alpha = {alphas[i]}°")
-
-axs[1, 0].set_xlabel('Normalized distance along airfoil')
-axs[1, 0].set_ylabel('C_p')
-axs[1, 0].set_title('C_p vs. Normalized distance for Different Angles of Attack')
-axs[1, 0].legend()
-axs[1, 0].grid(True)
-
-# Plot lift coefficient
-c_l_coefficients = np.zeros_like(alphas)
-for i in range(len(alphas)):
-    gamma_tot = sum((gammas[i][j] + gammas[i][j+1]) * panels[j].b for j in range(N))
-    c_l_coefficients[i] = -gamma_tot/(1/2 * U_inf * c)
-
-fit_coeffs = np.polyfit(alphas, c_l_coefficients, 1)
-fit_line = np.poly1d(fit_coeffs)
-fit_line_values = fit_line(alphas)
-
-axs[1, 1].plot(alphas, c_l_coefficients)
-axs[1, 1].plot(alphas, fit_line_values, linestyle='--', color='red', label='Linear Fit')
-
-axs[1, 1].set_xlabel('Angle of Attack (degrees)')
-axs[1, 1].set_ylabel('Lift Coefficient (Cl)')
-axs[1, 1].set_title('Lift Coefficient vs. Angle of Attack with Linear Fit')
-axs[1, 1].legend()
-axs[1, 1].grid(True)
-
-plt.tight_layout()
-plt.show()
