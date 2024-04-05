@@ -140,7 +140,7 @@ def circulation(alpha, U_inf):
     A[N,N] = 1     # Gamma n+1
     b[N] = 0
 
-    return scipy.linalg.solve(A,-b)/10000     # TODO facteur
+    return scipy.linalg.solve(A,-b)/10000     # TODO facteur et -
 
 if __name__ == "__main__":
     airfoil_data = np.loadtxt('Airfoil-RevE-HC.dat')
@@ -229,7 +229,7 @@ if __name__ == "__main__":
     plt.xlabel(r'$\frac{x}{c}$', fontsize=13)
     plt.ylabel(r'$C_p$', fontsize=13)
     plt.title('Pressure coefficient as a function of x/c')
-    plt.legend(loc='lower right')
+    plt.legend(loc='upper right')
     plt.grid(True)
     plt.show()
 
